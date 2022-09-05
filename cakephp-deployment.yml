@@ -1,0 +1,115 @@
+# https://docs.docker.com/compose/compose-file/compose-file-v3/
+version: '3.8'
+services:
+  cakephp-server:
+    image: akhilrajmailbox/cakephp:4
+    environment:
+      SSH_USERNAME: "cakeapp-user"
+      SSH_PASSWORD: "SomeSecureSSHPass"
+      MYSQL_USERNAME: "appuser"
+      MYSQL_PASSWORD: "SomeSecureDBPass"
+      MYSQL_HOST: "mysql-server"
+      MYSQL_DB: "cakephpdb"
+    ports:
+      - target: 80
+        published: 30000
+        protocol: tcp
+        mode: host
+      - target: 22
+        published: 30001
+        protocol: tcp
+        mode: host
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "com.devops.service.name=cakephp-app"
+      - "com.devops.service.module=server"
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels:
+        - "com.devops.service.name=cakephp-app"
+        - "com.devops.service.module=server"
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: pause # rollback
+        monitor: 5s
+        order: stop-first
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      placement:
+        max_replicas_per_node: 1
+        constraints:
+          - "node.role==manager"
+          - "node.platform.os==linux"
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
+        reservations:
+          cpus: "0.250"
+          memory: 0.5G
+    networks:
+      - cakephp-network
+
+  mysql-server:
+    image: mysql:8.0.0
+    environment:
+      MYSQL_USER: "appuser"
+      MYSQL_PASSWORD: "SomeSecureDBPass"
+      MYSQL_DATABASE: "cakephpdb"
+      MYSQL_ROOT_PASSWORD: "SomeSecureDBRootPass"
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "com.devops.service.name=cakephp-app"
+      - "com.devops.service.module=mysql"
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels:
+        - "com.devops.service.name=cakephp-app"
+        - "com.devops.service.module=mysql"
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: pause # rollback
+        monitor: 5s
+        order: stop-first
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      placement:
+        max_replicas_per_node: 1
+        constraints:
+          - "node.role==manager"
+          - "node.platform.os==linux"
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
+        reservations:
+          cpus: "0.250"
+          memory: 0.5G
+    networks:
+      - cakephp-network
+
+
+networks:
+  cakephp-network:
+    external: true
+    name: cakephp-network
